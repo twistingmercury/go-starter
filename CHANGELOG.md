@@ -9,4 +9,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial project scaffold.
+- Initial release: scaffold a Go project, install the bundled Claude skill with --install-skill.

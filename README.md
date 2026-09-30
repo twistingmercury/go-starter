@@ -1,65 +1,36 @@
 # go-starter
 
-> **Maturity Level**: Emerging - in active, initial development; expect breaking changes.
-> **Version**: v0.0.1
+Scaffolds a new Go project from a bundled template and ships the matching
+Claude Code skill.
 
----
-
-## Table of Contents
-
-- [Usage](#usage)
-- [How it works](#how-it-works)
-- [Key Considerations](#key-considerations)
-- [Development Considerations](#development-considerations)
-- [Versioning](#versioning)
-
-## Usage
-
-A new Python project
+## Install
 
 ```sh
-go-starter --version
+make build      # Docker: format check, lint, tests, wheel to dist/
+make install    # uv tool install dist/go_starter-*.whl
+go-starter --install-skill
 ```
 
-| Flag        | Short | Required | Description                 |
-| ----------- | ----- | -------- | --------------------------- |
-| `--version` | `-v`  | No       | Print the version and exit  |
+`--install-skill` replaces `~/.claude/skills/go-starter/` with the copy
+bundled in this build and prints the path. Every other run exits 1 until the
+installed skill matches the binary, and tells you to run it again.
 
-## How it works
-
-Argument parsing lives in `src/go_starter/cli.py` and the entry point in
-`src/go_starter/main.py`.
-
-## Key Considerations
-
-- Supported platforms are Linux and macOS only.
-
-## Development Considerations
-
-Requires Python >= 3.12 and [uv](https://docs.astral.sh/uv/).
-
-### Quick Start
+## Use
 
 ```sh
-uv sync
-uv run go-starter
+mkdir my-tool && cd my-tool
+go-starter --module github.com/acme/my-tool
+make local
 ```
 
-### Testing
+| Flag | Meaning |
+| --- | --- |
+| `--module <path>` | Go module path. Required. |
+| `--app-name <name>` | Binary name. Defaults to the last segment of the module path. |
+| `[target]` | Directory to scaffold into. Defaults to `.`; created if missing; must be empty apart from `.git`, `.claude`, `.codex`, `.agents`. |
+| `--install-skill` | Install the bundled skill and exit. |
 
-```sh
-make test      # sync, lint, and run pytest
-make analyze   # format and auto-fix lint findings
-make build     # Docker-first build; exports the wheel to dist/
-make help      # list available targets
-```
+## Develop
 
-## Versioning
-
-This project follows [Semantic Versioning 2.0.0](https://semver.org/).
-
-Version is determined from git tags:
-
-```bash
-git describe --tags --always
-```
+`make test` runs ruff and pytest. The Go compile test is skipped when `go`
+isn't on PATH, which includes the Docker build.
