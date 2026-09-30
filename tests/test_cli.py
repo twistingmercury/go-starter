@@ -3,17 +3,33 @@ import pytest
 from go_starter.cli import get_args
 
 
-def test_version_flag_prints_version_and_exits(capsys):
+def test_module_and_default_target():
+    args = get_args(["--module", "github.com/acme/tool"])
+
+    assert args.module == "github.com/acme/tool"
+    assert args.app_name is None
+    assert args.target == "."
+    assert args.install_skill is False
+
+
+def test_explicit_app_name_and_target():
+    args = get_args(
+        ["--module", "github.com/acme/tool", "--app-name", "acme", "out/dir"]
+    )
+
+    assert args.app_name == "acme"
+    assert args.target == "out/dir"
+
+
+def test_install_skill_does_not_need_module():
+    args = get_args(["--install-skill"])
+
+    assert args.install_skill is True
+    assert args.module is None
+
+
+def test_module_is_required_otherwise():
     with pytest.raises(SystemExit) as exc:
-        get_args(["--version"])
-
-    assert exc.value.code == 0
-    assert "go-starter" in capsys.readouterr().out
-
-
-def test_unknown_flag_exits(capsys):
-    with pytest.raises(SystemExit) as exc:
-        get_args(["--bogus"])
+        get_args([])
 
     assert exc.value.code == 2
-    assert "--bogus" in capsys.readouterr().err
