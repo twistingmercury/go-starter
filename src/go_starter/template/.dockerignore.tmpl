@@ -1,0 +1,29 @@
+# Only src/ is copied into the image; keep everything else out of the build context.
+.git/
+.gitignore
+.dockerignore
+.bin/
+build/
+docs/
+tests/
+Makefile
+*.md
+
+# Local agent and tool state
+.claude/
+rlm_state/
+
+# Secrets and environment
+*.env
+.env.*
+
+# Logs, temp files, editors, OS junk
+*.log
+*.tmp
+*.temp
+.cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

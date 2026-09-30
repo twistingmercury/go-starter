@@ -1,0 +1,13 @@
+# {{APP_NAME}}
+
+Go module `{{GO_MODULE}}`.
+
+## Build
+
+| Command | What it does |
+| --- | --- |
+| `make local` | Lint, vet, test, then build `.bin/local/{{APP_NAME}}` for this machine |
+| `make build` | Docker-based build; exports linux and darwin binaries for amd64 and arm64 to `.bin/` |
+| `make install` | Copy the local build to `$HOME/go/bin/{{APP_NAME}}` |
+
+Run `make` with no arguments to list every target.

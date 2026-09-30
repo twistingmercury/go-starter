@@ -1,0 +1,40 @@
+.PHONY: build help install uninstall local test analyze
+
+.DEFAULT_GOAL := help
+
+GIT_TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
+BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+GOBIN := ${HOME}/go/bin
+BIN_NAME ?= {{APP_NAME}}
+
+GO_SRC := $(CURDIR)/src
+GO_MODULE := $(shell cd $(GO_SRC) && go list -m)
+
+LOCAL_BUILD := $(CURDIR)/.bin/local
+
+help: ## Show this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\n\033[1mAvailable targets:\033[0m\n"} /^[a-zA-Z0-9_-]+:.*##/ { printf "  %-12s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo ""
+
+local: analyze test ## Performs only a local build of {{APP_NAME}}
+	cd $(GO_SRC) && CGO_ENABLED=0 go build \
+	--ldflags="-X '${GO_MODULE}/internal/version.version=${GIT_TAG}' -X '${GO_MODULE}/internal/version.buildDate=${BUILD_DATE}'" \
+	-o "${LOCAL_BUILD}/${BIN_NAME}" ./cmd
+
+build: ## Performs a full build of {{APP_NAME}} (Docker-based; use `make local` for a quick local binary)
+	./build/build.sh
+
+install: local ## Install {{APP_NAME}} to $GOBIN
+	cp ${LOCAL_BUILD}/${BIN_NAME} ${GOBIN}/${BIN_NAME}
+
+uninstall: ## Uninstall {{APP_NAME}} from $GOBIN
+	rm ${GOBIN}/${BIN_NAME}
+
+test: analyze ## Runs unit tests only (cmd and internal packages). The e2e suite runs in a container via `make build`.
+	cd $(GO_SRC) && CGO_ENABLED=1 go test -v -race ./...
+
+analyze: ## Run linters, formatters, security scanners on production code (no tests/ or *_test.go)
+	goimports -w $(GO_SRC)
+	cd $(GO_SRC) && golangci-lint run --tests=false ./...
+	cd $(GO_SRC) && govulncheck ./...
+	cd $(GO_SRC) && gosec -quiet -exclude-dir=tests ./...

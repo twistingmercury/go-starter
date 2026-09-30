@@ -18,3 +18,14 @@ go-starter = "go_starter.main:main"
 
 [tool.ruff.lint]
 select = ["N"]
+
+[tool.setuptools.package-data]
+# Plain * never matches a leading dot, and ** never descends into
+# hidden directories, so the dotfile and .github globs are required
+# or those files silently vanish from the wheel.
+go_starter = [
+    "template/**/*",
+    "template/**/.*",
+    "template/.github/workflows/*",
+    "skills/**/*",
+]
