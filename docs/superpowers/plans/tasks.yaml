@@ -1,0 +1,426 @@
+tasks:
+  - id: 1
+    name: Finish repo bootstrap
+    prompt: |
+      Objective:
+      Finish plan Task 1. The python-uv-starter scaffold is already rendered and
+      passing; what remains is the project description, a Git repository, and a
+      first commit that captures the scaffold, the plan, and the Gralph prompt.
+
+      Scope and files:
+      - Modify: pyproject.toml (the `description` line only).
+      - Create: .git via `git init`.
+      - Do not re-run the scaffold, rename anything, or touch src/ or tests/.
+      - Deviation from the plan: skip the plan's Step 1 (render) and Step 2
+        (make test verifies the fresh scaffold); both already happened.
+
+      Steps:
+      1. In pyproject.toml set
+         `description = "Scaffold a new Go project from a bundled template"`.
+      2. If `.git` does not exist, run `git init -b main`.
+      3. Run the quality gates.
+      4. Stage everything except the Gralph task file:
+         `git add -A && git reset -q docs/superpowers/plans/tasks.yaml`.
+         Confirm `git diff --cached --name-only` includes pyproject.toml,
+         uv.lock, docs/superpowers/plans/2026-09-29-go-starter.md and
+         docs/superpowers/plans/prompt.md, and excludes tasks.yaml.
+      5. Commit as `chore: scaffold go-starter with python-uv-starter`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: `git log --oneline` shows exactly one commit;
+        `git ls-files | grep -c tasks.yaml` prints 0;
+        `grep -c 'Scaffold a new Go project' pyproject.toml` prints 1.
+      - Expected outcome: all gates exit 0, one commit on main.
+
+      Completion criteria:
+      - pyproject.toml carries the new description.
+      - The repository is initialised on `main` with a single commit holding the
+        scaffold, uv.lock, the plan, and prompt.md, and not tasks.yaml.
+    state: completed
+  - id: 2
+    name: Name validation
+    prompt: |
+      Objective:
+      Implement plan Task 2: validation and derivation for the two values that
+      get substituted into the Go template, the module path and the app name.
+
+      Scope and files:
+      - Create: src/go_starter/names.py
+      - Create: tests/test_names.py
+      - Use the code and tests in plan Task 2 verbatim. No other files change.
+
+      Steps:
+      1. Write tests/test_names.py from the plan and run
+         `uv run pytest tests/test_names.py -v`; expect ModuleNotFoundError.
+      2. Write src/go_starter/names.py from the plan: MODULE_RE, APP_NAME_RE,
+         InvalidNameError(ValueError), validate_module, validate_app_name,
+         derive_app_name. The app-name error message must mention `--app-name`.
+      3. Run the tests again; expect all pass.
+      4. Run the quality gates, then commit as
+         `feat: validate module path and app name`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: `uv run pytest tests/test_names.py -v` passes every
+        parametrized case, including rejection of `https://github.com/acme/tool`,
+        `github.com/acme/tool/`, `{{GO_MODULE}}`, `MyTool`, and `-tool`.
+      - Expected outcome: names.py exposes the four names listed above and the
+        test module is green.
+
+      Completion criteria:
+      - Validators return the input unchanged on success and raise
+        InvalidNameError otherwise; derive_app_name returns the last segment.
+      - Committed with names.py and test_names.py only.
+    state: completed
+  - id: 3
+    name: Copy and tokenize Go template
+    prompt: |
+      Objective:
+      Implement the first half of plan Task 3: bring the Go project in as
+      package data under src/go_starter/template/ with every file suffixed
+      `.tmpl`, tokenized with `{{GO_MODULE}}` and `{{APP_NAME}}`, and declared
+      so the wheel ships it. embedded.py and its tests are NOT part of this
+      task.
+
+      Scope and files:
+      - Create: src/go_starter/template/** (15 files, listed below).
+      - Modify: pyproject.toml (add `[tool.setuptools.package-data]`).
+      - Source: /home/jeremy/dev/scratch/go-basic-project, read-only.
+      - Deviation from the plan: the template has 15 files, not 11. The four
+        extra ones come from the same source repo:
+        `.github/workflows/ci.yaml.tmpl`, `.markdownlint.json.tmpl`,
+        `.markdownlintignore.tmpl`, `.shellcheckrc.tmpl`.
+
+      Steps:
+      1. Copy files, following plan Task 3 Step 3 and adding the four extras:
+         .dockerignore.tmpl, .gitignore.tmpl, .markdownlint.json.tmpl,
+         .markdownlintignore.tmpl, .shellcheckrc.tmpl, Makefile.tmpl,
+         .github/workflows/ci.yaml.tmpl, build/Dockerfile.tmpl,
+         build/build.sh.tmpl, src/cmd/main.go.tmpl, src/go.mod.tmpl, plus
+         empty docs/.gitkeep.tmpl and tests/.gitkeep.tmpl, plus new
+         README.md.tmpl and CHANGELOG.md.tmpl with the content from plan Task 3
+         Step 4.
+      2. Tokenize exactly as plan Task 3 Step 4 specifies for go.mod, the
+         Makefile (keep leading TABs on recipe lines; delete the GOOS and GOARCH
+         lines), the Dockerfile (four `/{{APP_NAME}} ./cmd` occurrences), and
+         build.sh (IMAGE_NAME default and the `printf "${MODULE}\n"` line
+         removed).
+      3. In .github/workflows/ci.yaml.tmpl change `name: App CI` to
+         `name: {{APP_NAME}} CI`. Copy the three lint config files verbatim.
+      4. Append to pyproject.toml:
+
+           [tool.setuptools.package-data]
+           # Plain * never matches a leading dot, and ** never descends into
+           # hidden directories, so the dotfile and .github globs are required
+           # or those files silently vanish from the wheel.
+           go_starter = [
+               "template/**/*",
+               "template/**/.*",
+               "template/.github/workflows/*",
+               "skills/**/*",
+           ]
+
+      5. Run the quality gates (`make build` produces the wheel used below),
+         then commit as `feat: bundle the Go project template as package data`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks:
+        `find src/go_starter/template -type f | wc -l` prints 15;
+        `find src/go_starter/template -type f ! -name '*.tmpl' | wc -l` prints 0;
+        `grep -rhoE '\{\{[^}]*\}\}' src/go_starter/template | sort -u` prints
+        exactly `{{APP_NAME}}` and `{{GO_MODULE}}`;
+        `grep -c '{{APP_NAME}} ./cmd' src/go_starter/template/build/Dockerfile.tmpl`
+        prints 4;
+        `grep -rl gralph src/go_starter/template` prints nothing;
+        after `make build`, run
+        `uv run python -c "import glob,zipfile; print(sum(n.endswith('.tmpl') for n in zipfile.ZipFile(glob.glob('dist/go_starter-*.whl')[0]).namelist()))"`
+        and expect 15.
+      - Expected outcome: the template tree is complete, tokenized, free of the
+        word gralph, and every one of its 15 files is inside the built wheel.
+
+      Completion criteria:
+      - src/go_starter/template holds exactly the 15 .tmpl files above.
+      - The wheel produced by `make build` contains all 15.
+      - Committed with the template tree and pyproject.toml only.
+    state: completed
+  - id: 4
+    name: Embedded resource access
+    prompt: |
+      Objective:
+      Implement the second half of plan Task 3: `embedded.py`, the module that
+      locates bundled data and walks it in a stable order, with tests that
+      pin the template's file list and token set.
+
+      Scope and files:
+      - Create: src/go_starter/embedded.py
+      - Create: tests/test_embedded.py
+      - Depends on the template tree already present under
+        src/go_starter/template (15 files). Do not modify it.
+      - Deviation from the plan: EXPECTED_TEMPLATE_FILES has 15 entries. Add
+        `.github/workflows/ci.yaml.tmpl`, `.markdownlint.json.tmpl`,
+        `.markdownlintignore.tmpl`, and `.shellcheckrc.tmpl` to the set given
+        in plan Task 3 Step 1.
+
+      Steps:
+      1. Write tests/test_embedded.py from plan Task 3 Step 1 with the 15-entry
+         set. Run `uv run pytest tests/test_embedded.py -v`; expect
+         ModuleNotFoundError.
+      2. Write src/go_starter/embedded.py from plan Task 3 Step 6:
+         `resource(*parts) -> Traversable` and
+         `iter_files(root, prefix="") -> Iterator[tuple[str, Traversable]]`,
+         sorted by name at every level, with `entry_name` as a named key
+         function.
+      3. Run the tests again; expect all three pass. If the file-list test
+         fails, diff the sets; a missing entry means the template tree is
+         wrong, which is out of scope, so report it and fail the task.
+      4. Run the quality gates, then commit as
+         `feat: expose bundled resources through embedded.py`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: `uv run pytest tests/test_embedded.py -v` passes
+        test_iter_files_lists_every_template_file_including_dotfiles,
+        test_iter_files_is_sorted_and_stable, and
+        test_template_uses_only_the_two_tokens.
+      - Expected outcome: embedded.py walks all 15 template files in sorted
+        order and the only tokens found are the two allowed ones.
+
+      Completion criteria:
+      - embedded.resource and embedded.iter_files behave as specified.
+      - Committed with embedded.py and test_embedded.py only.
+    state: completed
+  - id: 5
+    name: Render template
+    prompt: |
+      Objective:
+      Implement plan Task 4: `render.py`, which checks the target directory is
+      empty apart from agent metadata dirs and writes the bundled template
+      with tokens replaced literally and the `.tmpl` suffix stripped.
+
+      Scope and files:
+      - Create: src/go_starter/render.py
+      - Create: tests/test_render.py
+      - Consumes embedded.resource and embedded.iter_files, already present.
+      - Deviation from the plan: extend
+        test_render_writes_the_project_with_tokens_replaced with two extra
+        assertions for the files added to the template:
+        `(tmp_path / ".github/workflows/ci.yaml").read_text().startswith("name: demo CI\n")`
+        and `(tmp_path / ".shellcheckrc").exists()`.
+
+      Steps:
+      1. Write tests/test_render.py from plan Task 4 Step 1 plus the two
+         assertions above. Run `uv run pytest tests/test_render.py -v`; expect
+         ModuleNotFoundError.
+      2. Write src/go_starter/render.py from plan Task 4 Step 3:
+         ALLOWED_ENTRIES, TEMPLATE_SUFFIX, EXECUTABLE_FILES,
+         TargetNotEmptyError, require_empty_target, substitute, render,
+         mark_executable. substitute uses str.replace so `&`, `\`, and `$` in
+         values need no escaping; require_empty_target rejects a symlinked
+         metadata dir.
+      3. Run the tests again; expect all pass.
+      4. Run the quality gates, then commit as
+         `feat: render the bundled template into an empty directory`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: `uv run pytest tests/test_render.py -v` passes all eight
+        tests, including the executable bit on build/build.sh, the literal
+        substitution of regex metacharacters, and rejection of a symlinked
+        `.git`.
+      - Expected outcome: rendering into a tmp dir yields a tree with no
+        `.tmpl` names and no `{{` anywhere, and the emptiness check names the
+        blocking entry in its message.
+
+      Completion criteria:
+      - render.render, render.require_empty_target, render.substitute, and
+        render.ALLOWED_ENTRIES exist with the specified behaviour.
+      - Committed with render.py and test_render.py only.
+    state: completed
+  - id: 6
+    name: Bundled skill and installer
+    prompt: |
+      Objective:
+      Implement plan Task 5: the Claude Code skill shipped inside the package,
+      and `skillinstall.py`, which installs it to ~/.claude/skills/go-starter
+      with a VERSION stamp and refuses to run when the stamp's hash does not
+      match this build.
+
+      Scope and files:
+      - Create: src/go_starter/skills/go-starter/SKILL.md
+      - Create: src/go_starter/skills/go-starter/agents/openai.yaml
+      - Create: src/go_starter/skillinstall.py
+      - Create: tests/conftest.py (fake_home and installed_skill fixtures)
+      - Create: tests/test_skillinstall.py
+      - The `skills/**/*` package-data glob is already in pyproject.toml.
+      - Deviation from the plan: in SKILL.md's "Generated layout" table add
+        one row: `.github/workflows/ci.yaml` with purpose
+        "Runs build/build.sh on develop and main", and extend the repo hygiene
+        row to include `.markdownlint.json`, `.markdownlintignore`, and
+        `.shellcheckrc`.
+
+      Steps:
+      1. Write SKILL.md and agents/openai.yaml from plan Task 5 Step 1, with
+         the table change above.
+      2. Write tests/conftest.py and tests/test_skillinstall.py from plan
+         Task 5 Step 2. Run `uv run pytest tests/test_skillinstall.py -v`;
+         expect ModuleNotFoundError.
+      3. Write src/go_starter/skillinstall.py from plan Task 5 Step 4:
+         SKILL_NAME, VERSION_FILE, INSTALL_HINT, SkillCheckError, skill_dir,
+         content_hash (sha256 over sorted relative path + bytes, prefixed
+         `sha256:`), install (rmtree then copy, then write VERSION as
+         `<version>\n<hash>\n`), check, read_stamp.
+      4. Run `uv run pytest tests/test_skillinstall.py tests/test_embedded.py -v`;
+         expect all pass.
+      5. Run the quality gates, then commit as
+         `feat: bundle the go-starter skill and install it with a version stamp`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: `uv run pytest tests/test_skillinstall.py -v` passes all
+        nine tests, including install with no pre-existing ~/.claude, stale
+        copy replacement, and the three check failure modes (not installed,
+        hash differs, VERSION missing).
+        `uv run python -c "import glob,zipfile; print([n for n in zipfile.ZipFile(glob.glob('dist/go_starter-*.whl')[0]).namelist() if '/skills/' in n])"`
+        after `make build` lists SKILL.md and agents/openai.yaml.
+      - Expected outcome: the skill installs under a fake HOME, its VERSION
+        stamp matches content_hash(), and check() distinguishes missing from
+        outdated.
+
+      Completion criteria:
+      - The two skill files, skillinstall.py, conftest.py, and
+        test_skillinstall.py exist and are committed together.
+      - No real ~/.claude/skills/go-starter is created; tests use fake_home.
+    state: completed
+  - id: 7
+    name: CLI and entry point
+    prompt: |
+      Objective:
+      Implement plan Task 6: the argparse CLI and the `main` entry point that
+      wires the skill gate, name validation, target creation, emptiness check,
+      and rendering, plus a Go compile integration test.
+
+      Scope and files:
+      - Modify: src/go_starter/cli.py (replace generated content)
+      - Modify: src/go_starter/main.py (replace generated content)
+      - Modify: tests/test_cli.py, tests/test_main.py (replace generated stubs)
+      - Create: tests/test_integration_go.py
+      - Consumes names, render, skillinstall, and the conftest fixtures, all
+        already present.
+      - Use the code and tests in plan Task 6 verbatim.
+
+      Steps:
+      1. Replace tests/test_cli.py and tests/test_main.py and create
+         tests/test_integration_go.py from plan Task 6 Steps 1 to 3. Run
+         `uv run pytest tests/test_cli.py tests/test_main.py tests/test_integration_go.py -v`;
+         expect failures from unrecognized `--module` and the stub main.
+      2. Replace src/go_starter/cli.py from plan Task 6 Step 5: `-v/--version`,
+         `--module`, `--app-name`, `--install-skill`, positional `target`
+         defaulting to `.`, and `parser.error("--module is required")` when
+         neither --install-skill nor --module is given.
+      3. Replace src/go_starter/main.py from plan Task 6 Step 6: main handles
+         --install-skill first; scaffold runs skillinstall.check, validates
+         names, mkdirs the target, checks emptiness, renders, and maps
+         USER_ERRORS (SkillCheckError, InvalidNameError, TargetNotEmptyError,
+         FileExistsError, NotADirectoryError) to `error: ...` on stderr and
+         exit 1. Success prints `Scaffolded <app> in <resolved target>`.
+      4. Run `uv run pytest -v`; expect everything green, including
+         test_rendered_project_compiles (Go 1.27 is on PATH locally).
+      5. Run the quality gates, then commit as
+         `feat: go-starter CLI with --install-skill gate`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: `uv run pytest -v` passes; `uv run go-starter --version`
+        prints `go-starter ` followed by a version;
+        `uv run go-starter` with no arguments exits 2 with
+        `--module is required`.
+        In the Docker build, test_rendered_project_compiles is skipped (no Go
+        in the image); locally it must run and pass.
+      - Expected outcome: every review-focus case from the plan is covered by
+        a passing test: module with bad last segment hints at --app-name,
+        scheme or trailing slash is rejected before any write, a file as
+        target yields `error:` not a traceback, a missing target is created,
+        and running without the skill exits 1 writing nothing.
+
+      Completion criteria:
+      - cli.get_args and main.main match the plan's interfaces.
+      - The full suite passes locally with Go on PATH.
+      - Committed with cli.py, main.py, and the four test files only.
+    state: completed
+  - id: 8
+    name: Docs and end-to-end
+    prompt: |
+      Objective:
+      Implement plan Task 7 minus its final manual step: write the README and
+      CHANGELOG, then install the tool for real, exercise the skill gate, and
+      scaffold and build a real Go project with it.
+
+      Scope and files:
+      - Modify: README.md (replace generated content with plan Task 7 Step 1)
+      - Modify: CHANGELOG.md (add the Unreleased bullet from plan Task 7 Step 1)
+      - Side effects outside the repo that the task keeps on purpose:
+        `uv tool install` of go-starter, and ~/.claude/skills/go-starter
+        written by `go-starter --install-skill`.
+      - Deviation from the plan: drop plan Step 5 (opening a new Claude Code
+        session to see the skill fire); a Gralph session cannot do that. Also
+        do not assert version `0.0.1` anywhere: with no Git tag the build is
+        `0.0.0.dev0`. Assert the shape `go-starter <version>` instead.
+
+      Steps:
+      1. Write README.md and the CHANGELOG bullet from plan Task 7 Step 1. In
+         the README's Install section, refer to the wheel as
+         `dist/go_starter-*.whl`.
+      2. Run the quality gates. `make build` must leave a wheel in dist/.
+      3. `make install`, then `go-starter --version`; expect
+         `go-starter <version>`.
+      4. Skill gate, before installing the skill:
+         `D=$(mktemp -d); go-starter --module example.com/demo "$D"; echo "exit=$?"`
+         Expect exit=1, stderr `error: the go-starter skill is not installed.`
+         then `Run: go-starter --install-skill` (or the `outdated` variant if an
+         older copy exists), and `ls -A "$D"` prints nothing.
+      5. `go-starter --install-skill`; expect it prints
+         /home/jeremy/.claude/skills/go-starter. `cat` that dir's VERSION;
+         expect two lines, the version then `sha256:<hex>`.
+      6. `go-starter --module example.com/demo "$D" && cd "$D"`, then
+         `grep -r '{{' . ; find . -name '*.tmpl'` (both print nothing),
+         `make local && ./.bin/local/demo` (prints `Why, hello there!`),
+         `make build && ls .bin/*/*/demo` (four binaries).
+      7. `cd /home/jeremy/dev/scratch/go-starter && rm -rf "$D"`.
+      8. Commit README.md and CHANGELOG.md as
+         `docs: README and changelog for go-starter`.
+
+      Verification:
+      - Working directory: /home/jeremy/dev/scratch/go-starter
+      - Quality gates: make test; uv run ruff format --check; make build;
+        git status --porcelain shows only docs/superpowers/plans/tasks.yaml
+      - Task checks: the observed output of Steps 3 to 6 above, quoted in the
+        final report; `ls -d "$D"` fails after cleanup.
+      - Expected outcome: the installed binary refuses to run until the skill
+        is installed, then scaffolds a Go project that passes its own
+        `make local` and `make build`.
+
+      Completion criteria:
+      - README.md and CHANGELOG.md updated and committed.
+      - go-starter is installed as a uv tool, its skill is installed under
+        ~/.claude/skills/go-starter with a matching VERSION stamp, and the
+        temporary Go project was built both ways and then removed.
+      - Report tells the user that /home/jeremy/dev/scratch/go-basic-project is
+        now redundant but was not deleted, and that confirming the skill fires
+        in a fresh Claude Code session is left to them.
+    state: completed
