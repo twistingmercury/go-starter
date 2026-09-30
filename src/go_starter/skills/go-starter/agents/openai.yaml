@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go Starter"
+  short_description: "Scaffold an empty Go CLI project with go-starter"
+  default_prompt: "Use $go-starter to scaffold a new Go project in the current directory."
